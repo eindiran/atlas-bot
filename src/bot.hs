@@ -22,9 +22,9 @@ io = liftIO
 server    = "irc.freenode.org"
 port      = 6667
 channel   = "#tutbot-testing"
-nickname  = "tutbot"
-ident     = "Tut-Bot"
-gecos     = "TutorialBot v1.0"
+nickname  = "atlas-bot"
+ident     = "AtlasBot"
+gecos     = "AtlasBot v0.1"
 
 
 --} write: Send a message to the server we're connected to.
@@ -35,7 +35,7 @@ write s t = do
     io $ printf    "> %s %s\n" s t
 
 
---} privmsg fn
+--} privmsg: Send a private message.
 privmsg :: String -> Net ()
 privmsg s = write "PRIVMSG" (channel ++ " :" ++ s)
 
@@ -102,7 +102,7 @@ kick :: String -> Net ()
 kick n = write "KICK" (channel ++ " :" ++ n)
 
 
---} Main fn: Setup actions at start, enter run loop.
+--} main: Setup actions at start, enter run loop.
 main :: IO ()
 main = bracket connect disconnect loop
   where
