@@ -1,6 +1,7 @@
 --} IRC bot written in Haskell
 
 import Data.List
+import Data.Bool
 import Network
 import System.Exit
 import System.IO
@@ -43,23 +44,42 @@ privmsg s = write "PRIVMSG" (channel ++ " :" ++ s)
 --} eval: Dispatch a command.
 eval :: String -> Net ()
 eval     "!quit"                 = write "QUIT" ":Exiting" >> io (exitWith ExitSuccess)
-eval     "!names"                = get_names
+eval     "!names"                = get_users
+eval     "!list"                 = show_commands
+eval     "!help"                 = show_commands
 eval x | "!id" `isPrefixOf` x    = privmsg (drop 4 x)
 eval x | "!topic" `isPrefixOf` x = set_topic (drop 7 x)
 eval x | "!kick" `isPrefixOf` x  = kick (drop 6 x)
 eval     _                       = return () -- ignore anything that doesn't match
                                              -- the above patterns
  
+--}
+show_commands :: Net ()
+show_commands = do
+    write "PRIVMSG" (channel ++ " :" ++ "These are the commands available:")
+    write "PRIVMSG" (channel ++ " :" ++ "    !help:     Show help message")
+    write "PRIVMSG" (channel ++ " :" ++ "    !names:    List the users in the channel")
+    write "PRIVMSG" (channel ++ " :" ++ "    !list:     List available commands")
+    write "PRIVMSG" (channel ++ " :" ++ "    !quit:     Quit the bot")
+    write "PRIVMSG" (channel ++ " :" ++ "    !id:       Send private message")
+    write "PRIVMSG" (channel ++ " :" ++ "    !topic:    Set channel topic")
+    write "PRIVMSG" (channel ++ " :" ++ "    !kick:     Kick a user from the channel")
+
+
+--} clean: clean a string from the server.
+clean s = drop 1 . dropWhile (/= ':') . drop 1
+
 
 --} listen: Process each line from the server.
 listen :: Handle -> Net ()
 listen h = forever $ do
     s <- init `fmap` io (hGetLine h)
     io (putStrLn s)
-    if ping s then pong s else eval (clean s)
+    let clean_s = (clean s)
+    if (names clean_s) then get_users h else eval clean_s
   where
     forever a = a >> forever a
-    clean     = drop 1 . dropWhile (/= ':') . drop 1
+    names x   = "names!" `isPrefixOf` x
     ping x    = "PING: " `isPrefixOf` x
     pong x    = write "PONG" (':' : drop 6 x)
 
@@ -92,9 +112,16 @@ set_topic :: String -> Net ()
 set_topic s = write "TOPIC" (channel ++ " :" ++ s)
     
 
---} get_names: Get the names of those in the channel.
-get_names :: Net ()
-get_names = write "NAMES" (channel ++ " :")
+--} get_users: Get the names of those in the channel.
+get_users :: Handle -> Net ()
+get_users h = do
+    write "NAMES" (channel ++ " :")
+    s <- init `fmap` io (hGetLine h)
+    io (putStrLn s)
+    write "Names list:    " (clean s)
+  where
+    clean = drop 1 . dropWhile (/= ':') . drop 1
+
 
 
 --} kick: Kick as user off of a channel.
