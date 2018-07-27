@@ -17,7 +17,7 @@ build: bin/atlasbot
 # Run the binary after it has been compiled and linked
 .PHONY: run
 run: build
-	./build/atlasbot
+	./bin/atlasbot
 
 # Compile the tests
 .PHONY: compile_tests
