@@ -1,7 +1,17 @@
---} IRC bot written in Haskell
+{-# Language OverloadedStrings #-}
+{-|
+Module       : Main
+Description  : A simple IRC bot written in Haskell
+Author       : Elliott Indiran <eindiran@uchicago.edu>
+Stability    : experimental
+Portability  : POSIX
+Version      : v0.1.0
+-}
 
+module Main where
 import Data.List
 import Data.Bool
+-- import Data.Text
 import Network
 import System.Exit
 import System.IO
@@ -11,25 +21,36 @@ import Control.Exception
 import Text.Printf
 
 
---} Net monad: wraps IO, carries bots immutable state.
-data Bot = Bot { socket :: Handle }
-type Net = ReaderT Bot IO
+type ServerName  = String  -- Type for a server name
+type ChannelName = String  -- Type for a channel name
+type PortNum     = Int     -- Type for a port number
 
-io :: IO a -> Net a
+
+--} Pack all of the values to do setup together
+data ChannelSetup = ChannelSetup { server  :: ServerName,
+                                   channel :: ChannelName,
+                                   port    :: PortNum
+                                 } deriving (Show)
+
+--} HandleIO monad: wraps IO, carries bots immutable state.
+data Bot = Bot { socket :: Handle }
+type HandleIO = ReaderT Bot IO
+
+io :: IO a -> HandleIO a
 io = liftIO
 
 
 --} Set up global variables to store channel, server, port and nick.
-server    = "irc.freenode.org"
-port      = 6667
-channel   = "#tutbot-testing"
-nickname  = "atlas-bot"
-ident     = "AtlasBot"
-gecos     = "AtlasBot v0.1"
+server_t    = "irc.freenode.org"
+port_t      = 6667
+channel_t   = "#tutbot-testing"
+nickname    = "atlas-bot"
+ident       = "AtlasBot"
+gecos       = "AtlasBot v0.1"
 
 
 --} write: Send a message to the server we're connected to.
-write :: String -> String -> Net ()
+write :: String -> String -> HandleIO ()
 write s t = do
     h <- asks socket
     io $ hPrintf h "%s %s\r\n" s t
@@ -37,14 +58,14 @@ write s t = do
 
 
 --} privmsg: Send a private message.
-privmsg :: String -> Net ()
-privmsg s = write "PRIVMSG" (channel ++ " :" ++ s)
+privmsg :: String -> HandleIO ()
+privmsg s = write "PRIVMSG" (channel_t ++ " :" ++ s)
 
 
 --} eval: Dispatch a command.
-eval :: String -> Net ()
-eval     "!quit"                 = write "QUIT" ":Exiting" >> io (exitWith ExitSuccess)
-eval     "!names"                = get_users
+eval :: String -> HandleIO ()
+eval     "!quit"                 = write "QUIT:" "Caught !quit command" >> io (exitWith ExitSuccess)
+--eval     "!names"                = get_users
 eval     "!list"                 = show_commands
 eval     "!help"                 = show_commands
 eval x | "!id" `isPrefixOf` x    = privmsg (drop 4 x)
@@ -54,32 +75,28 @@ eval     _                       = return () -- ignore anything that doesn't mat
                                              -- the above patterns
  
 --}
-show_commands :: Net ()
+show_commands :: HandleIO ()
 show_commands = do
-    write "PRIVMSG" (channel ++ " :" ++ "These are the commands available:")
-    write "PRIVMSG" (channel ++ " :" ++ "    !help:     Show help message")
-    write "PRIVMSG" (channel ++ " :" ++ "    !names:    List the users in the channel")
-    write "PRIVMSG" (channel ++ " :" ++ "    !list:     List available commands")
-    write "PRIVMSG" (channel ++ " :" ++ "    !quit:     Quit the bot")
-    write "PRIVMSG" (channel ++ " :" ++ "    !id:       Send private message")
-    write "PRIVMSG" (channel ++ " :" ++ "    !topic:    Set channel topic")
-    write "PRIVMSG" (channel ++ " :" ++ "    !kick:     Kick a user from the channel")
-
-
---} clean: clean a string from the server.
-clean s = drop 1 . dropWhile (/= ':') . drop 1
+    write "PRIVMSG" (channel_t ++ " :" ++ "These are the commands available:")
+    write "PRIVMSG" (channel_t ++ " :" ++ "    !help:     Show help message")
+    write "PRIVMSG" (channel_t ++ " :" ++ "    !names:    List the users in the channel")
+    write "PRIVMSG" (channel_t ++ " :" ++ "    !list:     List available commands")
+    write "PRIVMSG" (channel_t ++ " :" ++ "    !quit:     Quit the bot")
+    write "PRIVMSG" (channel_t ++ " :" ++ "    !id:       Send private message")
+    write "PRIVMSG" (channel_t ++ " :" ++ "    !topic:    Set channel topic")
+    write "PRIVMSG" (channel_t ++ " :" ++ "    !kick:     Kick a user from the channel")
 
 
 --} listen: Process each line from the server.
-listen :: Handle -> Net ()
+listen :: Handle -> HandleIO ()
 listen h = forever $ do
     s <- init `fmap` io (hGetLine h)
     io (putStrLn s)
-    let clean_s = (clean s)
-    if (names clean_s) then get_users h else eval clean_s
+    if ping s then pong s else eval (clean s)
+    -- if (names clean_s) then get_users h else eval clean_s
   where
     forever a = a >> forever a
-    names x   = "names!" `isPrefixOf` x
+    clean = drop 1 . dropWhile (/= ':') . drop 1
     ping x    = "PING: " `isPrefixOf` x
     pong x    = write "PONG" (':' : drop 6 x)
 
@@ -87,35 +104,35 @@ listen h = forever $ do
 --} connect: Connect to the server and return the initial bot state.
 connect :: IO Bot
 connect = notify $ do
-    h <- connectTo server (PortNumber (fromIntegral port))
+    h <- connectTo server_t (PortNumber (fromIntegral port_t))
     hSetBuffering h NoBuffering
     return (Bot h)
   where
     notify a = bracket_
-        (printf "Connecting to %s  ..." server >> hFlush stdout)
+        (printf "Connecting to %s  ..." server_t >> hFlush stdout)
         (putStrLn "done.")
         a
 
 
---} run: We're in the Net monad now, so we've connected successfully
+--} run: We're in the HandleIO monad now, so we've connected successfully
 --       Join a channel, and start processing commands
-run :: Net ()
+run :: HandleIO ()
 run = do
     write "NICK" nickname
     write "USER" (ident ++ " 0 * : " ++ gecos)
-    write "JOIN" channel
+    write "JOIN" channel_t
     asks socket >>= listen
 
 
 --} set_topic: Set the topic of a (mode +t) channel.
-set_topic :: String -> Net ()
-set_topic s = write "TOPIC" (channel ++ " :" ++ s)
+set_topic :: String -> HandleIO ()
+set_topic s = write "TOPIC" (channel_t ++ " :" ++ s)
     
 
 --} get_users: Get the names of those in the channel.
-get_users :: Handle -> Net ()
+get_users :: Handle -> HandleIO ()
 get_users h = do
-    write "NAMES" (channel ++ " :")
+    write "NAMES" (channel_t ++ " :")
     s <- init `fmap` io (hGetLine h)
     io (putStrLn s)
     write "Names list:    " (clean s)
@@ -125,8 +142,8 @@ get_users h = do
 
 
 --} kick: Kick as user off of a channel.
-kick :: String -> Net ()
-kick n = write "KICK" (channel ++ " :" ++ n)
+kick :: String -> HandleIO ()
+kick n = write "KICK" (channel_t ++ " :" ++ n)
 
 
 --} main: Setup actions at start, enter run loop.
