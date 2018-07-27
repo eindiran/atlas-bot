@@ -22,19 +22,17 @@ run: build
 # Compile the tests
 .PHONY: compile_tests
 compile_tests:
-	cd test/
-	ghc --make atlasbot_test.hs -o atlasbot_test
+	ghc --make test/atlasbot_test.hs -o test/atlasbot_test
 
-# Run the tests, after both the tests and the main binary
-# have been compiled and linked
+# Run the tests, after the tests have been compiled
+# and linked
 .PHONY: run_tests
-run_tests: build compile_tests
-	cd test/
-	./atlasbot_test
+run_tests: compile_tests
+	./test/atlasbot_test
 
-# Alias "test" to run all tests
+# Alias "test" to run all tests, after building a new binary
 .PHONY: test
-test: run_tests
+test: build run_tests
 
 # Run the hlint linter over the source code, including
 # the tests
@@ -47,13 +45,13 @@ lint: build
 # the test directory
 .PHONY: clean_test
 clean_test:
-	rm test/*.o
-	rm test/*.hi
-	rm test/atlasbot_test
+	rm -f test/*.o
+	rm -f test/*.hi
+	rm -f test/atlasbot_test
 
 # Clean the bin, build, and test directories
 .PHONY: clean
 clean: clean_test
-	rm build/*.o
-	rm build/*.hi
-	rm bin/atlasbot
+	rm -f build/*.o
+	rm -f build/*.hi
+	rm -f bin/atlasbot
