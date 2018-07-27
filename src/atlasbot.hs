@@ -40,9 +40,9 @@ io = liftIO
 
 
 --} Set up global variables to store channel, server, port and nick.
-server_t    = "irc.freenode.org"
+server_t    = ""
 port_t      = 6667
-channel_t   = "#tutbot-testing"
+channel_t   = ""
 nickname    = "atlas-bot"
 ident       = "AtlasBot"
 gecos       = "AtlasBot v0.1"
