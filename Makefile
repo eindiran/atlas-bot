@@ -37,9 +37,15 @@ test: build run_tests
 # Run the hlint linter over the source code, including
 # the tests
 .PHONY: lint
-lint: build
-	hlint src/
-	hlint test/
+lint:
+	-hlint src/
+	-hlint test/
+
+# Generate a hlint report
+.PHONY: report_lint_status
+report_lint_status:
+	-hlint src/ --report
+	-hlint test/ --report
 
 # Remove the intermediate objects and the binaries from
 # the test directory
@@ -50,8 +56,10 @@ clean_test:
 	rm -f test/atlasbot_test
 
 # Clean the bin, build, and test directories
+# as well as the report produced by hlint
 .PHONY: clean
 clean: clean_test
 	rm -f build/*.o
 	rm -f build/*.hi
 	rm -f bin/atlasbot
+	rm -f report.html
