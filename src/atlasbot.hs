@@ -11,7 +11,6 @@ Version      : v0.1.0
 module Main where
 import Data.List
 import Data.Bool
--- import Data.Text
 import Network
 import System.Exit
 import System.IO
