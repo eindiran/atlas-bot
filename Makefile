@@ -55,11 +55,15 @@ clean_test:
 	rm -f test/*.hi
 	rm -f test/atlasbot_test
 
-# Clean the bin, build, and test directories
+# Clean the src and bin directories
+.PHONY: clean_src
+clean_src:
+	rm -f src/*.o
+	rm -f src/*.hi
+	rm -f bin/atlasbot
+
+# Clean the bin, src, and test directories
 # as well as the report produced by hlint
 .PHONY: clean
-clean: clean_test
-	rm -f build/*.o
-	rm -f build/*.hi
-	rm -f bin/atlasbot
+clean: clean_test clean_src
 	rm -f report.html
