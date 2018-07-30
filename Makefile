@@ -51,13 +51,16 @@ report_lint_status:
 # the test directory
 .PHONY: clean_test
 clean_test:
+	rm -f test/*.dyn_*
 	rm -f test/*.o
 	rm -f test/*.hi
 	rm -f test/atlasbot_test
+	rm -f test/yaml_config_test
 
 # Clean the src and bin directories
 .PHONY: clean_src
 clean_src:
+	rm -f src/*.dyn_*
 	rm -f src/*.o
 	rm -f src/*.hi
 	rm -f bin/atlasbot
